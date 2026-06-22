@@ -1,6 +1,6 @@
 import { requireAdmin } from '@/lib/require-admin'
 import { createClient } from '@/lib/supabase/server'
-import ReportesClient from '@/components/reportes/reportes-client'
+import CajasClient from '@/components/cajas/cajas-client'
 
 function generateAllMonths(): string[] {
   const months: string[] = []
@@ -36,7 +36,7 @@ async function getCajaData(mes: string) {
   }
 }
 
-export default async function ReportesPage({
+export default async function CajasPage({
   searchParams,
 }: {
   searchParams: Promise<{ mes?: string }>
@@ -50,7 +50,7 @@ export default async function ReportesPage({
   const { ingresos, egresos, retiros } = await getCajaData(mes)
 
   return (
-    <ReportesClient
+    <CajasClient
       mes={mes}
       allMonths={allMonths}
       ingresos={ingresos}

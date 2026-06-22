@@ -25,7 +25,7 @@ export async function agregarIngreso(formData: FormData) {
   })
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function agregarEgreso(formData: FormData) {
@@ -47,7 +47,7 @@ export async function agregarEgreso(formData: FormData) {
   })
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function agregarRetiro(formData: FormData) {
@@ -67,7 +67,7 @@ export async function agregarRetiro(formData: FormData) {
   })
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function editarIngreso(id: number, formData: FormData) {
@@ -90,7 +90,7 @@ export async function editarIngreso(id: number, formData: FormData) {
   }).eq('id', id)
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function editarEgreso(id: number, formData: FormData) {
@@ -111,7 +111,7 @@ export async function editarEgreso(id: number, formData: FormData) {
   }).eq('id', id)
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function editarRetiro(id: number, formData: FormData) {
@@ -130,26 +130,26 @@ export async function editarRetiro(id: number, formData: FormData) {
   }).eq('id', id)
   if (error) throw new Error(error.message)
 
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function borrarIngreso(id: number) {
   await requireAdmin()
   const supabase = await createClient()
   await supabase.from('caja_ingresos').delete().eq('id', id)
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function borrarEgreso(id: number) {
   await requireAdmin()
   const supabase = await createClient()
   await supabase.from('caja_egresos').delete().eq('id', id)
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }
 
 export async function borrarRetiro(id: number) {
   await requireAdmin()
   const supabase = await createClient()
   await supabase.from('caja_administracion').delete().eq('id', id)
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
 }

@@ -11,8 +11,9 @@ const NAV_ITEMS = [
   { href: '/reservas',     label: 'Reservas',     adminOnly: false },
   { href: '/limpieza',     label: 'Limpieza',     adminOnly: false },
   { href: '/inventario',   label: 'Inventario',   adminOnly: false },
+  { href: '/usuarios',     label: 'Usuarios',     adminOnly: false },
   { href: '/camaras',      label: 'Cámaras',      adminOnly: true  },
-  { href: '/reportes',     label: 'Reportes',     adminOnly: true  },
+  { href: '/cajas',        label: 'Cajas',        adminOnly: true  },
 ]
 
 export default function Sidebar({ role, userEmail }: { role: string; userEmail: string }) {

@@ -9,8 +9,9 @@ const NAV_ITEMS = [
   { href: '/reservas',    label: 'Reservas',    icon: '📋', adminOnly: false },
   { href: '/limpieza',    label: 'Limpieza',    icon: '✓',  adminOnly: false },
   { href: '/inventario',  label: 'Inventario',  icon: '▤',  adminOnly: false },
+  { href: '/usuarios',    label: 'Usuarios',    icon: '👤', adminOnly: false },
   { href: '/camaras',     label: 'Cámaras',     icon: '📷', adminOnly: true  },
-  { href: '/reportes',    label: 'Reportes',    icon: '↗',  adminOnly: true  },
+  { href: '/cajas',       label: 'Cajas',       icon: '↗',  adminOnly: true  },
 ]
 
 export default function MobileNav({ role }: { role: string }) {

@@ -4,6 +4,29 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+export async function habitacionesDisponibles(checkIn: string, checkOut: string) {
+  const supabase = await createClient()
+
+  const { data: rooms } = await supabase
+    .from('rooms')
+    .select('id, number, floor, type')
+    .eq('is_permanent_coliving', false)
+    .order('floor')
+    .order('number')
+
+  if (!checkIn || !checkOut) return rooms ?? []
+
+  const { data: conflicts } = await supabase
+    .from('reservations')
+    .select('room_id')
+    .eq('status', 'CONFIRMADO')
+    .lt('check_in', checkOut)
+    .gt('check_out', checkIn)
+
+  const ocupadas = new Set((conflicts ?? []).map(c => c.room_id))
+  return (rooms ?? []).filter(r => !ocupadas.has(r.id))
+}
+
 export async function crearReserva(formData: FormData) {
   const supabase = await createClient()
 
@@ -154,7 +177,7 @@ export async function marcarPago(formData: FormData) {
   }
 
   revalidatePath('/reservas')
-  revalidatePath('/reportes')
+  revalidatePath('/cajas')
   revalidatePath('/dashboard')
 }
 

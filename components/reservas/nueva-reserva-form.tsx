@@ -1,31 +1,45 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { crearReserva } from '@/lib/actions/reservas'
+import { useState, useTransition, useEffect } from 'react'
+import { crearReserva, habitacionesDisponibles } from '@/lib/actions/reservas'
 
 type Room = { id: number; number: string; floor: number; type: string }
 
 const AGENCIAS = ['Booking', 'Airbnb', 'WhatsApp', 'Directo', 'Instagram', 'TikTok']
 const CAMAS    = ['MATRIMONIAL', 'INDIVIDUALES']
+const TIPOS    = ['Mini Studio', 'Studio', 'Loft', 'Flat', 'Flat Plus']
 
 export default function NuevaReservaForm({
   rooms,
   error,
-  unavailableRoomIds = [],
 }: {
   rooms: Room[]
   error?: string
-  unavailableRoomIds?: number[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [checkIn,  setCheckIn]  = useState('')
   const [checkOut, setCheckOut] = useState('')
+  const [tipo, setTipo] = useState('')
+  const [roomId, setRoomId] = useState('')
+  const [availableRooms, setAvailableRooms] = useState<Room[]>(rooms)
+  const [loadingRooms, setLoadingRooms] = useState(false)
 
   const nights = checkIn && checkOut
     ? Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000))
     : 0
 
-  const availableRooms = rooms.filter(r => !unavailableRoomIds.includes(r.id))
+  useEffect(() => {
+    if (!checkIn || !checkOut) {
+      setAvailableRooms(rooms)
+      return
+    }
+    setLoadingRooms(true)
+    habitacionesDisponibles(checkIn, checkOut)
+      .then(setAvailableRooms)
+      .finally(() => setLoadingRooms(false))
+  }, [checkIn, checkOut, rooms])
+
+  const filteredRooms = tipo ? availableRooms.filter(r => r.type === tipo) : availableRooms
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -55,23 +69,7 @@ export default function NuevaReservaForm({
           />
         </Field>
 
-        <Field label="Habitación *">
-          <select name="room_id" required className={INPUT}>
-            <option value="">Seleccionar habitación…</option>
-            {[1, 2, 3, 4].map(floor => (
-              <optgroup key={floor} label={`Piso ${floor}`}>
-                {availableRooms
-                  .filter(r => r.floor === floor)
-                  .sort((a, b) => a.number.localeCompare(b.number))
-                  .map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.number} — {r.type}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </Field>
+        <div />
 
         <Field label="Check-in *">
           <input
@@ -79,7 +77,7 @@ export default function NuevaReservaForm({
             type="date"
             required
             value={checkIn}
-            onChange={e => setCheckIn(e.target.value)}
+            onChange={e => { setCheckIn(e.target.value); setRoomId('') }}
             className={INPUT}
           />
         </Field>
@@ -91,9 +89,55 @@ export default function NuevaReservaForm({
             required
             value={checkOut}
             min={checkIn || undefined}
-            onChange={e => setCheckOut(e.target.value)}
+            onChange={e => { setCheckOut(e.target.value); setRoomId('') }}
             className={INPUT}
           />
+        </Field>
+
+        <Field label="Tipo de habitación">
+          <select
+            value={tipo}
+            onChange={e => { setTipo(e.target.value); setRoomId('') }}
+            disabled={!checkIn || !checkOut}
+            className={`${INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <option value="">Todos los tipos</option>
+            {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Habitación *">
+          <select
+            name="room_id"
+            required
+            value={roomId}
+            onChange={e => setRoomId(e.target.value)}
+            disabled={!checkIn || !checkOut || loadingRooms}
+            className={`${INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <option value="">
+              {!checkIn || !checkOut
+                ? 'Elegí las fechas primero…'
+                : loadingRooms
+                ? 'Buscando disponibles…'
+                : filteredRooms.length === 0
+                ? 'Sin habitaciones libres'
+                : 'Seleccionar habitación…'}
+            </option>
+            {[1, 2, 3, 4].map(floor => {
+              const ofFloor = filteredRooms.filter(r => r.floor === floor).sort((a, b) => a.number.localeCompare(b.number))
+              if (ofFloor.length === 0) return null
+              return (
+                <optgroup key={floor} label={`Piso ${floor}`}>
+                  {ofFloor.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.number} — {r.type}
+                    </option>
+                  ))}
+                </optgroup>
+              )
+            })}
+          </select>
         </Field>
 
       </div>

@@ -502,7 +502,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-export default function ReportesClient({ mes, allMonths, ingresos, egresos, retiros }: Props) {
+export default function CajasClient({ mes, allMonths, ingresos, egresos, retiros }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<'ingresos' | 'egresos' | 'admin'>('ingresos')
 
