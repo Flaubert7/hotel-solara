@@ -3,10 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname.startsWith('/login')
-  const hasSessionCookie = request.cookies.getAll().some((c) => c.name.startsWith('sb-'))
 
-  // Sin cookie de sesión y pidiendo /login: nada que verificar contra Supabase, evita la latencia extra
-  if (isLoginPage && !hasSessionCookie) {
+  // /login se deja pasar siempre sin tocar: el Server Action y el propio
+  // formulario manejan su redirect. Interceptarla acá (incluido el POST del
+  // login) pisa la respuesta especial de Server Actions y rompe el cliente.
+  if (isLoginPage) {
     return NextResponse.next({ request })
   }
 
@@ -33,19 +34,10 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Redirigir a login si no hay sesión y no está en /login
-  if (!user && !isLoginPage) {
+  // Sin sesión fuera de /login: redirigir a login
+  if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  // Si ya hay sesión y es una navegación GET, no mostrar el formulario de login.
-  // No interceptar POST: ahí es donde corre el Server Action de login, que ya
-  // hace su propio redirect — devolver otro acá rompe la respuesta esperada.
-  if (user && isLoginPage && request.method === 'GET') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
