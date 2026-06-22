@@ -95,6 +95,69 @@ export async function crearReserva(formData: FormData) {
   redirect('/reservas')
 }
 
+export async function marcarPago(formData: FormData) {
+  const supabase = await createClient()
+
+  const id              = Number(formData.get('id'))
+  const payment_status  = String(formData.get('payment_status') ?? 'PENDIENTE')
+  const invoice_number  = String(formData.get('invoice_number') ?? '').trim() || null
+  const paid_amount_usd = Number(formData.get('paid_amount_usd')) || null
+  const forma_pago      = String(formData.get('forma_pago') ?? '').trim() || null
+
+  const { data: reserva } = await supabase
+    .from('reservations')
+    .select('guest_name, check_in, caja_ingreso_id')
+    .eq('id', id)
+    .single()
+
+  if (!reserva) return
+
+  if (payment_status === 'PAGADO') {
+    const mes = reserva.check_in.slice(0, 7)
+    const ingresoRec = {
+      fecha: reserva.check_in,
+      mes,
+      categoria: 'RESERVA',
+      nombre: reserva.guest_name,
+      detalle: invoice_number ? `FACTURA ${invoice_number}` : null,
+      forma_pago,
+      monto_usd: paid_amount_usd ?? 0,
+      monto_gs: 0,
+      nro_cbte: invoice_number,
+    }
+
+    let caja_ingreso_id = reserva.caja_ingreso_id
+    if (caja_ingreso_id) {
+      await supabase.from('caja_ingresos').update(ingresoRec).eq('id', caja_ingreso_id)
+    } else {
+      const { data: ingreso } = await supabase
+        .from('caja_ingresos')
+        .insert(ingresoRec)
+        .select('id')
+        .single()
+      caja_ingreso_id = ingreso?.id ?? null
+    }
+
+    await supabase
+      .from('reservations')
+      .update({ payment_status, invoice_number, paid_amount_usd, caja_ingreso_id })
+      .eq('id', id)
+  } else {
+    // Volver a pendiente: si había un ingreso generado, se borra de Caja
+    if (reserva.caja_ingreso_id) {
+      await supabase.from('caja_ingresos').delete().eq('id', reserva.caja_ingreso_id)
+    }
+    await supabase
+      .from('reservations')
+      .update({ payment_status: 'PENDIENTE', invoice_number: null, paid_amount_usd: null, caja_ingreso_id: null })
+      .eq('id', id)
+  }
+
+  revalidatePath('/reservas')
+  revalidatePath('/reportes')
+  revalidatePath('/dashboard')
+}
+
 export async function cancelarReserva(id: number) {
   const supabase = await createClient()
 

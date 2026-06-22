@@ -62,9 +62,10 @@ Auth manejado con Supabase Auth + tabla `user_profiles` que guarda el rol.
 **Huéspedes de coliving PERMANENTE — NUNCA modificar, NUNCA mover:**
 - JACKEWAY → habitación 303
 - BROCK AWAY → habitación 304
-- THYM → habitación 405
 - THOMAS → habitación 406
 - WAYRA → habitación 201 (personal del hotel — dueño y pareja)
+
+> Nota (22/06/2026): THYM dejó de ser coliving permanente. La habitación 405 ya rota con huéspedes normales de hotelería, igual que cualquier otra.
 
 ---
 

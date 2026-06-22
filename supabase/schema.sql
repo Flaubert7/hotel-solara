@@ -33,6 +33,10 @@ create table if not exists reservations (
   payment_method varchar(100),
   notes text,
   modality varchar(20) default 'HOTELERIA',
+  payment_status varchar(20) default 'PENDIENTE',  -- 'PENDIENTE', 'PAGADO'
+  invoice_number varchar(50),
+  paid_amount_usd decimal(10,2),
+  caja_ingreso_id int,  -- referencia al ingreso generado en caja_ingresos, si existe
   created_at timestamptz default now()
 );
 

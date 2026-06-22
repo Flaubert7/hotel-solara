@@ -10,12 +10,14 @@ async function getDashboardStats() {
     { data: checkInsHoy },
     { data: checkOutsHoy },
     { data: reservasActivas },
+    { data: pagosPendientes },
   ] = await Promise.all([
     supabase.from('rooms').select('*', { count: 'exact', head: true }),
     supabase.from('rooms').select('id, is_permanent_coliving'),
     supabase.from('reservations').select('id, guest_name, rooms(number)').eq('check_in', today).eq('status', 'CONFIRMADO'),
     supabase.from('reservations').select('id, guest_name, rooms(number)').eq('check_out', today).eq('status', 'CONFIRMADO'),
     supabase.from('reservations').select('room_id').eq('status', 'CONFIRMADO').lte('check_in', today).gt('check_out', today),
+    supabase.from('reservations').select('id, guest_name, rooms(number)').eq('status', 'CONFIRMADO').eq('payment_status', 'PENDIENTE').lte('check_in', today),
   ])
 
   const colivingCount = rooms?.filter(r => r.is_permanent_coliving).length ?? 0
@@ -33,6 +35,7 @@ async function getDashboardStats() {
     ocupacionPct,
     checkInsHoy: checkInsHoy ?? [],
     checkOutsHoy: checkOutsHoy ?? [],
+    pagosPendientes: pagosPendientes ?? [],
   }
 }
 
@@ -75,6 +78,12 @@ export default async function DashboardPage() {
         </div>
 
       </div>
+
+      {stats.pagosPendientes.length > 0 && (
+        <div className="mt-4">
+          <ListCard title="Pagos pendientes" items={stats.pagosPendientes} emptyMsg="" accent="amber" />
+        </div>
+      )}
     </div>
   )
 }
@@ -153,11 +162,12 @@ function ListCard({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: any[]
   emptyMsg: string
-  accent: 'emerald' | 'rose'
+  accent: 'emerald' | 'rose' | 'amber'
 }) {
   const badge: Record<string, string> = {
     emerald: 'bg-emerald-100 text-emerald-700',
     rose:    'bg-rose-100 text-rose-700',
+    amber:   'bg-amber-100 text-amber-700',
   }
 
   return (

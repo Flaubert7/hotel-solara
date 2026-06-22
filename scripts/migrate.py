@@ -26,10 +26,11 @@ SUPABASE_URL = os.environ['NEXT_PUBLIC_SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 
 # Huespedes que NO deben migrarse (coliving permanente real)
-SKIP_GUESTS = {'PERSONAL', '-', 'JACKEWAY', 'BROCK AWAY', 'THYM', 'THOMAS'}
+# NOTA: THYM dejó de ser coliving permanente (la 405 ahora rota como hotelería normal)
+SKIP_GUESTS = {'PERSONAL', '-', 'JACKEWAY', 'BROCK AWAY', 'THOMAS'}
 # Habitaciones coliving permanente (no crear reservas para ellas)
 # NOTA: 201 (WAYRA) era estadía temporal personal, SÍ debe migrarse
-COLIVING_ROOMS = {'303', '304', '405', '406'}
+COLIVING_ROOMS = {'303', '304', '406'}
 
 AGENCIAS_MAP = {
     'BOOKING': 'Booking', 'AIRBNB': 'Airbnb', 'WHATSAPP': 'WhatsApp',
@@ -361,8 +362,10 @@ def merge_cross_month(reservations: list[dict]) -> list[dict]:
     return merged
 
 
-def migrate(excel_path: str):
+def migrate(excel_path: str, from_date: date | None = None):
     print(f"\nIniciando migracion desde: {excel_path}\n")
+    if from_date:
+        print(f"Filtro: solo reservas con check_in >= {from_date.isoformat()}\n")
 
     sb = create_client(SUPABASE_URL, SUPABASE_KEY)
     wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
@@ -371,11 +374,18 @@ def migrate(excel_path: str):
     room_map = {r['number']: r['id'] for r in rooms_res.data}
     print(f"[OK] {len(room_map)} habitaciones en Supabase\n")
 
+    # Reservas ya existentes (room_id, guest_name, check_in) para no duplicar
+    existing_res = sb.table('reservations').select('room_id, guest_name, check_in').execute()
+    existing_keys = {(r['room_id'], r['guest_name'], r['check_in']) for r in existing_res.data}
+    print(f"[OK] {len(existing_keys)} reservas ya existentes (se omitirán si coinciden)\n")
+
     # ── 1. Reservas desde MESES ───────────────────────────────────────────────
     print("Paso 1: Leyendo matrices mensuales...")
     reservations_raw = parse_meses(wb, room_map)
     reservations_raw = deduplicate(reservations_raw)
     reservations_raw = merge_cross_month(reservations_raw)
+    if from_date:
+        reservations_raw = [r for r in reservations_raw if r['check_in'] >= from_date]
     print(f"  Total reservas unicas: {len(reservations_raw)}\n")
 
     # ── 2. Detalles de limpieza ───────────────────────────────────────────────
@@ -399,6 +409,7 @@ def migrate(excel_path: str):
     print("Insertando reservas en Supabase...")
     res_migrated = 0
     cleaning_migrated = 0
+    res_skipped = 0
 
     for r in reservations_raw:
         room_id = room_map.get(r['room_num'])
@@ -407,6 +418,10 @@ def migrate(excel_path: str):
 
         nights = (r['check_out'] - r['check_in']).days
         guest  = r['guest_name']
+
+        if (room_id, guest, r['check_in'].isoformat()) in existing_keys:
+            res_skipped += 1
+            continue
 
         # Enriquecer con datos de limpieza
         det = limp_details.get((guest, r['room_num']), {})
@@ -463,9 +478,15 @@ def migrate(excel_path: str):
 
     # ── Insertar inventario ───────────────────────────────────────────────────
     print(f"\nInsertando inventario...")
+    existing_inv = sb.table('inventory_items').select('name').execute()
+    existing_inv_names = {i['name'] for i in existing_inv.data}
     inv_migrated = 0
+    inv_skipped = 0
     for item in inv_items:
         if not item['name']:
+            continue
+        if item['name'] in existing_inv_names:
+            inv_skipped += 1
             continue
         try:
             sb.table('inventory_items').insert({
@@ -482,15 +503,16 @@ def migrate(excel_path: str):
 {'='*50}
 MIGRACION COMPLETADA
 
-  Reservas:   {res_migrated}
+  Reservas:   {res_migrated} nuevas, {res_skipped} omitidas (ya existían)
   Limpieza:   {cleaning_migrated}
-  Inventario: {inv_migrated}
+  Inventario: {inv_migrated} nuevos, {inv_skipped} omitidos (ya existían)
 {'='*50}
 """)
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print('Uso: python scripts/migrate.py "ruta/al/archivo.xlsm"')
+        print('Uso: python scripts/migrate.py "ruta/al/archivo.xlsm" [YYYY-MM-DD]')
         sys.exit(1)
-    migrate(sys.argv[1])
+    from_date = date.fromisoformat(sys.argv[2]) if len(sys.argv) > 2 else None
+    migrate(sys.argv[1], from_date)

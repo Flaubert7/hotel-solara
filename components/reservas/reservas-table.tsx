@@ -1,7 +1,7 @@
 'use client'
 
-import { useTransition } from 'react'
-import { cancelarReserva, borrarReserva } from '@/lib/actions/reservas'
+import { useState, useTransition } from 'react'
+import { cancelarReserva, borrarReserva, marcarPago } from '@/lib/actions/reservas'
 
 type Reservation = {
   id: number
@@ -21,6 +21,9 @@ type Reservation = {
   payment_method: string | null
   notes: string | null
   modality: string
+  payment_status: string | null
+  invoice_number: string | null
+  paid_amount_usd: number | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rooms: any
 }
@@ -65,6 +68,86 @@ function BorrarBtn({ id }: { id: number }) {
   )
 }
 
+const inp = 'border border-stone-200 rounded-lg px-2 py-1.5 text-sm w-full'
+
+function PagoBadge({ r }: { r: Reservation }) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const isPagado = r.payment_status === 'PAGADO'
+
+  if (open) {
+    return (
+      <div className="absolute z-20 mt-1 right-0 bg-white border border-stone-200 rounded-xl shadow-lg p-4 w-72">
+        <form
+          onSubmit={e => {
+            e.preventDefault()
+            const fd = new FormData(e.currentTarget)
+            fd.set('id', String(r.id))
+            fd.set('payment_status', 'PAGADO')
+            startTransition(async () => { await marcarPago(fd); setOpen(false) })
+          }}
+          className="flex flex-col gap-3"
+        >
+          <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Marcar como pagado</p>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-stone-500">Monto pagado (USD)</label>
+            <input name="paid_amount_usd" type="number" step="0.01" defaultValue={r.paid_amount_usd ?? r.rate_usd ?? ''} className={inp} autoFocus />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-stone-500">Nro. de factura</label>
+            <input name="invoice_number" type="text" defaultValue={r.invoice_number ?? ''} className={inp} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-stone-500">Forma de pago</label>
+            <select name="forma_pago" className={inp} defaultValue="">
+              <option value="">—</option>
+              {['EFECTIVO','TRANSFERENCIA','TARJETA','QR'].map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2 justify-end mt-1">
+            <button type="button" onClick={() => setOpen(false)} className="text-sm text-stone-400 hover:text-stone-600 cursor-pointer">Cancelar</button>
+            <button type="submit" disabled={pending} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-50">
+              {pending ? 'Guardando…' : 'Confirmar pago'}
+            </button>
+          </div>
+          {isPagado && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (confirm('¿Marcar como pendiente otra vez? Esto elimina el ingreso generado en Caja.')) {
+                  const fd = new FormData()
+                  fd.set('id', String(r.id))
+                  fd.set('payment_status', 'PENDIENTE')
+                  startTransition(async () => { await marcarPago(fd); setOpen(false) })
+                }
+              }}
+              className="text-xs text-rose-500 hover:text-rose-700 cursor-pointer self-start"
+            >
+              Volver a pendiente
+            </button>
+          )}
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setOpen(true)}
+        className={`text-xs px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap cursor-pointer transition ${
+          isPagado
+            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+            : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+        }`}
+        title={r.invoice_number ? `Factura ${r.invoice_number}` : undefined}
+      >
+        {isPagado ? 'Pagado' : 'Pendiente'}
+      </button>
+    </div>
+  )
+}
 
 export default function ReservasTable({ reservations }: { reservations: Reservation[] }) {
   if (reservations.length === 0) {
@@ -77,10 +160,10 @@ export default function ReservasTable({ reservations }: { reservations: Reservat
 
   return (
     <div className="flex-1 overflow-auto rounded-xl border border-stone-200 shadow-sm bg-white">
-      <table className="w-full text-sm min-w-[900px]">
+      <table className="w-full text-sm min-w-[980px]">
         <thead>
           <tr className="border-b-2 border-stone-300 bg-stone-50 sticky top-0 z-10 shadow-sm">
-            {['Hab','Huésped','Entrada','Salida','Noches','Agencia','PAX','ETA','Cama','Desayuno','Tarifa','Estado',''].map(h => (
+            {['Hab','Huésped','Entrada','Salida','Noches','Agencia','PAX','ETA','Cama','Desayuno','Tarifa','Pago','Estado',''].map(h => (
               <th key={h} className="text-left text-stone-400 text-xs uppercase tracking-wider px-4 py-3 font-semibold whitespace-nowrap">
                 {h}
               </th>
@@ -117,6 +200,7 @@ export default function ReservasTable({ reservations }: { reservations: Reservat
                 <td className="px-4 py-3 text-stone-600 whitespace-nowrap">
                   {r.rate_usd ? `$${r.rate_usd}` : '—'}
                 </td>
+                <td className="px-4 py-3"><PagoBadge r={r} /></td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${
                     isConfirmed
