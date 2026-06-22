@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  const isLoginPage = request.nextUrl.pathname.startsWith('/login')
+  const hasSessionCookie = request.cookies.getAll().some((c) => c.name.startsWith('sb-'))
+
+  // Sin cookie de sesión y pidiendo /login: nada que verificar contra Supabase, evita la latencia extra
+  if (isLoginPage && !hasSessionCookie) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -24,8 +32,6 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  const isLoginPage = request.nextUrl.pathname.startsWith('/login')
 
   // Redirigir a login si no hay sesión y no está en /login
   if (!user && !isLoginPage) {
