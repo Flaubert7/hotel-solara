@@ -39,6 +39,10 @@ yarn-error.log*
 # claude
 .claude
 
+# python
+__pycache__/
+*.pyc
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
