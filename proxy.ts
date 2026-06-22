@@ -40,8 +40,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Si ya hay sesión, no mostrar el formulario de login
-  if (user && isLoginPage) {
+  // Si ya hay sesión y es una navegación GET, no mostrar el formulario de login.
+  // No interceptar POST: ahí es donde corre el Server Action de login, que ya
+  // hace su propio redirect — devolver otro acá rompe la respuesta esperada.
+  if (user && isLoginPage && request.method === 'GET') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
