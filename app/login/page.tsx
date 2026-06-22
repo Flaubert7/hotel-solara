@@ -1,5 +1,6 @@
 import { login } from './actions'
 import Image from 'next/image'
+import { LoginButton } from './login-button'
 
 export default async function LoginPage({
   searchParams,
@@ -59,12 +60,7 @@ export default async function LoginPage({
               </p>
             )}
 
-            <button
-              type="submit"
-              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg py-2.5 text-sm transition mt-1 cursor-pointer"
-            >
-              Ingresar
-            </button>
+            <LoginButton />
 
           </form>
         </div>
