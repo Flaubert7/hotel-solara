@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   agregarIngreso, agregarEgreso, agregarRetiro,
+  editarIngreso, editarEgreso, editarRetiro,
   borrarIngreso, borrarEgreso, borrarRetiro,
 } from '@/lib/actions/caja'
 
@@ -198,6 +199,178 @@ function BorrarBtn({ onBorrar }: { onBorrar: () => void }) {
     >
       {pending ? '…' : '✕'}
     </button>
+  )
+}
+
+function EditarBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-xs text-stone-300 hover:text-amber-600 transition cursor-pointer"
+    >
+      ✎
+    </button>
+  )
+}
+
+// ── Editable rows ───────────────────────────────────────────────────────────
+function IngresoRow({ r }: { r: Ingreso }) {
+  const [editing, setEditing] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  if (editing) {
+    return (
+      <tr className="border-b border-stone-100 bg-amber-50">
+        <td colSpan={8} className="px-4 py-3">
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              startTransition(async () => { await editarIngreso(r.id, fd); setEditing(false) })
+            }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          >
+            <Field label="Fecha *"><input name="fecha" type="date" required defaultValue={r.fecha} className={inp} /></Field>
+            <Field label="Categoría"><input name="categoria" type="text" defaultValue={r.categoria ?? ''} className={`${inp} uppercase`} /></Field>
+            <Field label="Nombre"><input name="nombre" type="text" defaultValue={r.nombre ?? ''} className={`${inp} uppercase`} /></Field>
+            <Field label="Detalle"><input name="detalle" type="text" defaultValue={r.detalle ?? ''} className={`${inp} uppercase`} /></Field>
+            <Field label="Forma de pago">
+              <select name="forma_pago" defaultValue={r.forma_pago ?? ''} className={inp}>
+                <option value="">—</option>
+                {['EFECTIVO','TRANSFERENCIA','TARJETA','QR'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Monto Gs."><input name="monto_gs" type="number" step="1" defaultValue={r.monto_gs} className={inp} /></Field>
+            <Field label="Monto USD"><input name="monto_usd" type="number" step="0.01" defaultValue={r.monto_usd} className={inp} /></Field>
+            <Field label="Nro. comprobante"><input name="nro_cbte" type="text" defaultValue={r.nro_cbte ?? ''} className={inp} /></Field>
+            <div className="col-span-2 md:col-span-4 flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditing(false)} className="text-sm text-stone-400 hover:text-stone-600 cursor-pointer">Cancelar</button>
+              <button type="submit" disabled={pending} className="bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-1.5 rounded-lg cursor-pointer disabled:opacity-50">
+                {pending ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className="border-b border-stone-100 hover:bg-stone-50 transition">
+      <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
+      <td className="px-4 py-3 text-stone-700 text-sm">{r.categoria ?? '—'}</td>
+      <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.nombre ?? '—'}</td>
+      <td className="px-4 py-3 text-stone-500 text-sm hidden md:table-cell">{r.detalle ?? '—'}</td>
+      <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.forma_pago ?? '—'}</td>
+      <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.monto_gs)}</td>
+      <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.monto_usd)}</td>
+      <td className="px-4 py-3 text-right">
+        <div className="flex items-center gap-2 justify-end">
+          <EditarBtn onClick={() => setEditing(true)} />
+          <BorrarBtn onBorrar={() => borrarIngreso(r.id)} />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function EgresoRow({ r }: { r: Egreso }) {
+  const [editing, setEditing] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  if (editing) {
+    return (
+      <tr className="border-b border-stone-100 bg-amber-50">
+        <td colSpan={7} className="px-4 py-3">
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              startTransition(async () => { await editarEgreso(r.id, fd); setEditing(false) })
+            }}
+            className="grid grid-cols-2 md:grid-cols-3 gap-3"
+          >
+            <Field label="Fecha *"><input name="fecha" type="date" required defaultValue={r.fecha} className={inp} /></Field>
+            <Field label="Detalle"><input name="detalle" type="text" defaultValue={r.detalle ?? ''} className={`${inp} uppercase`} /></Field>
+            <Field label="Monto Gs."><input name="monto_gs" type="number" step="1" defaultValue={r.monto_gs} className={inp} /></Field>
+            <Field label="Monto USD"><input name="monto_usd" type="number" step="0.01" defaultValue={r.monto_usd} className={inp} /></Field>
+            <Field label="Nro. recibo"><input name="nro_recibo" type="text" defaultValue={r.nro_recibo ?? ''} className={inp} /></Field>
+            <Field label="Nro. factura"><input name="nro_factura" type="text" defaultValue={r.nro_factura ?? ''} className={inp} /></Field>
+            <div className="col-span-2 md:col-span-3 flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditing(false)} className="text-sm text-stone-400 hover:text-stone-600 cursor-pointer">Cancelar</button>
+              <button type="submit" disabled={pending} className="bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-1.5 rounded-lg cursor-pointer disabled:opacity-50">
+                {pending ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className="border-b border-stone-100 hover:bg-stone-50 transition">
+      <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
+      <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.detalle ?? '—'}</td>
+      <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.nro_recibo ?? '—'}</td>
+      <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.nro_factura ?? '—'}</td>
+      <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.monto_gs)}</td>
+      <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.monto_usd)}</td>
+      <td className="px-4 py-3 text-right">
+        <div className="flex items-center gap-2 justify-end">
+          <EditarBtn onClick={() => setEditing(true)} />
+          <BorrarBtn onBorrar={() => borrarEgreso(r.id)} />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function RetiroRow({ r }: { r: Retiro }) {
+  const [editing, setEditing] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  if (editing) {
+    return (
+      <tr className="border-b border-stone-100 bg-amber-50">
+        <td colSpan={5} className="px-4 py-3">
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              startTransition(async () => { await editarRetiro(r.id, fd); setEditing(false) })
+            }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          >
+            <Field label="Fecha *"><input name="fecha" type="date" required defaultValue={r.fecha} className={inp} /></Field>
+            <Field label="Retiro Gs."><input name="retiro_gs" type="number" step="1" defaultValue={r.retiro_gs} className={inp} /></Field>
+            <Field label="Retiro USD"><input name="retiro_usd" type="number" step="0.01" defaultValue={r.retiro_usd} className={inp} /></Field>
+            <Field label="Descripción"><input name="descripcion" type="text" defaultValue={r.descripcion ?? ''} className={`${inp} uppercase`} /></Field>
+            <div className="col-span-2 md:col-span-4 flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditing(false)} className="text-sm text-stone-400 hover:text-stone-600 cursor-pointer">Cancelar</button>
+              <button type="submit" disabled={pending} className="bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-1.5 rounded-lg cursor-pointer disabled:opacity-50">
+                {pending ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className="border-b border-stone-100 hover:bg-stone-50 transition">
+      <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
+      <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.descripcion ?? '—'}</td>
+      <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.retiro_gs)}</td>
+      <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.retiro_usd)}</td>
+      <td className="px-4 py-3 text-right">
+        <div className="flex items-center gap-2 justify-end">
+          <EditarBtn onClick={() => setEditing(true)} />
+          <BorrarBtn onBorrar={() => borrarRetiro(r.id)} />
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -504,18 +677,7 @@ export default function ReportesClient({ mes, allMonths, ingresos, egresos, reti
             hiddenMd={[3,4]} />
           <tbody>
             {ingresos.length === 0 && <EmptyRow colSpan={8} />}
-            {ingresos.map(r => (
-              <tr key={r.id} className="border-b border-stone-100 hover:bg-stone-50 transition">
-                <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
-                <td className="px-4 py-3 text-stone-700 text-sm">{r.categoria ?? '—'}</td>
-                <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.nombre ?? '—'}</td>
-                <td className="px-4 py-3 text-stone-500 text-sm hidden md:table-cell">{r.detalle ?? '—'}</td>
-                <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.forma_pago ?? '—'}</td>
-                <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.monto_gs)}</td>
-                <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.monto_usd)}</td>
-                <td className="px-4 py-3 text-right"><BorrarBtn onBorrar={() => borrarIngreso(r.id)} /></td>
-              </tr>
-            ))}
+            {ingresos.map(r => <IngresoRow key={r.id} r={r} />)}
           </tbody>
           {ingresos.length > 0 && (
             <tfoot>
@@ -536,17 +698,7 @@ export default function ReportesClient({ mes, allMonths, ingresos, egresos, reti
             hiddenMd={[2,3]} />
           <tbody>
             {egresos.length === 0 && <EmptyRow colSpan={7} />}
-            {egresos.map(r => (
-              <tr key={r.id} className="border-b border-stone-100 hover:bg-stone-50 transition">
-                <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
-                <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.detalle ?? '—'}</td>
-                <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.nro_recibo ?? '—'}</td>
-                <td className="px-4 py-3 text-stone-400 text-sm hidden md:table-cell">{r.nro_factura ?? '—'}</td>
-                <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.monto_gs)}</td>
-                <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.monto_usd)}</td>
-                <td className="px-4 py-3 text-right"><BorrarBtn onBorrar={() => borrarEgreso(r.id)} /></td>
-              </tr>
-            ))}
+            {egresos.map(r => <EgresoRow key={r.id} r={r} />)}
           </tbody>
           {egresos.length > 0 && (
             <tfoot>
@@ -566,15 +718,7 @@ export default function ReportesClient({ mes, allMonths, ingresos, egresos, reti
           <TableHead cols={['Fecha','Descripción','Retiro Gs.','Retiro USD','']} hiddenMd={[]} />
           <tbody>
             {retiros.length === 0 && <EmptyRow colSpan={5} />}
-            {retiros.map(r => (
-              <tr key={r.id} className="border-b border-stone-100 hover:bg-stone-50 transition">
-                <td className="px-4 py-3 text-stone-500 text-sm">{fmtFecha(r.fecha)}</td>
-                <td className="px-4 py-3 text-stone-800 font-medium text-sm">{r.descripcion ?? '—'}</td>
-                <td className="px-4 py-3 text-right font-semibold text-stone-800 text-sm">{fmtGs(r.retiro_gs)}</td>
-                <td className="px-4 py-3 text-right text-stone-500 text-sm">{fmtUsd(r.retiro_usd)}</td>
-                <td className="px-4 py-3 text-right"><BorrarBtn onBorrar={() => borrarRetiro(r.id)} /></td>
-              </tr>
-            ))}
+            {retiros.map(r => <RetiroRow key={r.id} r={r} />)}
           </tbody>
           {retiros.length > 0 && (
             <tfoot>
